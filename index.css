@@ -12,14 +12,15 @@ body {
 /* 針對列印的優化樣式 */
 @media print {
   @page {
-    /* 設定為 A4 大小，適當邊距 */
-    size: auto; 
-    margin: 10mm;
+    /* 建議瀏覽器使用橫向列印，以適應寬樹狀圖 */
+    size: landscape; 
+    margin: 5mm;
   }
 
   body {
     -webkit-print-color-adjust: exact;
     background-color: white !important;
+    min-width: 1024px; /* 防止版面縮太小 */
   }
 
   /* 隱藏背景色與陰影以節省墨水並增加清晰度 */
@@ -33,20 +34,46 @@ body {
     border: 1px solid #ddd !important;
   }
 
-  /* 強制覆蓋 App.tsx 中的內聯高度計算，允許瀏覽器自動分頁 */
-  .bracket-container {
+  /* 
+     MODAL 列印模式
+     當 body 擁有 .print-mode-modal class 時，隱藏所有主要內容，只顯示 Modal
+  */
+  body.print-mode-modal > *:not(.team-match-modal-wrapper) {
+    display: none !important;
+  }
+
+  body.print-mode-modal .team-match-modal-wrapper {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* 
+     STANDARD 列印模式 (列印整個樹狀圖) 
+     僅當非 Modal 列印模式時生效
+  */
+  body:not(.print-mode-modal) .bracket-container {
     min-height: 0 !important;
     height: auto !important;
     display: flex !important;
-    flex-wrap: wrap !important; /* 允許過寬時折行，雖然樹狀圖通常不折行，但這能避免內容被切掉 */
+    /* 修正：禁止折行，確保樹狀結構水平延伸 */
+    flex-wrap: nowrap !important; 
     gap: 10px !important;
+    width: max-content; /* 確保內容寬度完整，不會被切斷 */
+    padding: 20px 0 !important;
   }
 
-  /* 每一輪的直列容器 */
-  .bracket-round-column {
-    display: block !important;
+  body:not(.print-mode-modal) .bracket-round-column {
+    display: flex !important;
+    flex-direction: column !important;
     height: auto !important;
-  }
 
   /* 確保每個 MatchCard 不會被從中間切斷 */
   .match-card-wrapper {
@@ -60,5 +87,10 @@ body {
     break-after: avoid;
     page-break-after: avoid;
     margin-bottom: 20px;
+  }
+
+  /* 隱藏滾動條 */
+  ::-webkit-scrollbar {
+    display: none;
   }
 }
