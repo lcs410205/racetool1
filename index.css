@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  /* 更新字體：英文 Inter, 中文 Noto Sans TC */
+  font-family: "Inter", "Noto Sans TC", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 針對列印的優化樣式 */
+@media print {
+  @page {
+    /* 設定為 A4 大小，適當邊距 */
+    size: auto; 
+    margin: 10mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    background-color: white !important;
+  }
+
+  /* 隱藏背景色與陰影以節省墨水並增加清晰度 */
+  .bg-gray-50, .bg-slate-900, .bg-slate-950\/30 {
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  .shadow-sm, .shadow-md, .shadow-lg {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* 強制覆蓋 App.tsx 中的內聯高度計算，允許瀏覽器自動分頁 */
+  .bracket-container {
+    min-height: 0 !important;
+    height: auto !important;
+    display: flex !important;
+    flex-wrap: wrap !important; /* 允許過寬時折行，雖然樹狀圖通常不折行，但這能避免內容被切掉 */
+    gap: 10px !important;
+  }
+
+  /* 每一輪的直列容器 */
+  .bracket-round-column {
+    display: block !important;
+    height: auto !important;
+  }
+
+  /* 確保每個 MatchCard 不會被從中間切斷 */
+  .match-card-wrapper {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 5px;
+  }
+  
+  /* 標題只在第一頁顯示（自然流佈局特性），確保它下方不會直接被切斷 */
+  .print-title {
+    break-after: avoid;
+    page-break-after: avoid;
+    margin-bottom: 20px;
+  }
+}

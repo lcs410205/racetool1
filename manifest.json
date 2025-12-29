@@ -1,0 +1,21 @@
+{
+  "name": "賽事管理系統",
+  "short_name": "賽事管理",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3112/3112946.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3112/3112946.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
