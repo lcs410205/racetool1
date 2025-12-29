@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trophy, Users, RefreshCw, Minus, Plus, Grid, GitMerge, ArrowLeft, Trash2, PlusCircle, AlertCircle, Save, Download, FileDown, Settings, Edit3, X, Check, UserRound, Users as UsersIcon, PenLine, FileText, Trash, LayoutList, ChevronRight, FolderOpen, MoreVertical, ChevronDown } from 'lucide-react';
+import { Trophy, Users, RefreshCw, Minus, Plus, Grid, GitMerge, ArrowLeft, Trash2, PlusCircle, AlertCircle, Save, Download, FileDown, Settings, Edit3, X, Check, UserRound, Users as UsersIcon, PenLine, FileText, Trash, LayoutList, ChevronRight, FolderOpen, MoreVertical, ChevronDown, Lock, Unlock, Printer } from 'lucide-react';
 
 // --- 型別定義 ---
 type MatchType = 'single' | 'double' | 'team';
@@ -61,6 +61,7 @@ interface TournamentConfig {
     elimPointsCount: number; // for team elim
     pointsCount: number; // for RR (points per match)
     rrSize?: number; // default size for new groups
+    isLocked: boolean; // 新增：鎖定分數編輯
 }
 
 interface Tournament {
@@ -94,47 +95,150 @@ const ConfirmDialog = ({ isOpen, message, onConfirm, onCancel }: any) => {
   );
 };
 
-// --- 新增賽事選擇對話框 (新) ---
+// --- 新增賽事選擇對話框 (修改版) ---
 const AddTournamentDialog = ({ isOpen, onClose, onAdd }: any) => {
+    const [selectedType, setSelectedType] = useState<TournamentType | null>(null);
+    
+    // Elimination Config State
+    const [elimSize, setElimSize] = useState(8);
+    const [elimMode, setElimMode] = useState<MatchType>('single');
+    const [elimPoints, setElimPoints] = useState(3);
+    const [elimWinCondition, setElimWinCondition] = useState(2);
+
+    // Round Robin Config State
+    const [rrPoints, setRrPoints] = useState(3);
+    const [rrWinCondition, setRrWinCondition] = useState(2);
+
+    useEffect(() => {
+        if (isOpen) {
+            setSelectedType(null);
+            // Reset defaults
+            setElimSize(8);
+            setElimMode('single');
+            setElimPoints(3);
+            setElimWinCondition(2);
+            setRrPoints(3);
+            setRrWinCondition(2);
+        }
+    }, [isOpen]);
+
+    const handleConfirm = () => {
+        if (!selectedType) return;
+        
+        if (selectedType === 'elimination') {
+            onAdd('elimination', {
+                winCondition: elimWinCondition,
+                elimType: elimMode,
+                elimPointsCount: elimPoints,
+                pointsCount: 1 // unused
+            }, elimSize);
+        } else {
+            onAdd('roundRobin', {
+                winCondition: rrWinCondition,
+                pointsCount: rrPoints,
+                elimType: 'single', // unused
+                elimPointsCount: 3 // unused
+            });
+        }
+    };
+
     if (!isOpen) return null;
   
     return (
       <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200 print:hidden" style={{ fontFamily: '"Inter", "Noto Sans TC", sans-serif' }}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100 border border-gray-100">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100 border border-gray-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
           <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><PlusCircle size={24} /></div>
-                  新增賽事類型
+                  新增賽事
               </h3>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 p-1.5 rounded-full transition-colors"><X size={20} /></button>
           </div>
           
           <div className="grid grid-cols-1 gap-4">
-              <button 
-                  onClick={() => onAdd('elimination')} 
-                  className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 hover:shadow-md transition-all group text-left"
-              >
-                  <div className="bg-purple-100 p-3 rounded-full text-purple-600 group-hover:bg-purple-200 group-hover:text-purple-700 transition-colors">
-                      <GitMerge size={28} />
-                  </div>
-                  <div>
-                      <div className="font-bold text-lg text-gray-800 group-hover:text-purple-900">淘汰賽</div>
-                      <div className="text-sm text-gray-500 group-hover:text-purple-700/70">建立樹狀對戰圖 (單/雙/團體)</div>
-                  </div>
-              </button>
+              {/* 淘汰賽選項 */}
+              <div className={`border rounded-xl transition-all overflow-hidden ${selectedType === 'elimination' ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-100' : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md'}`}>
+                  <button onClick={() => setSelectedType('elimination')} className="w-full flex items-center gap-4 p-4 text-left">
+                      <div className="bg-purple-100 p-3 rounded-full text-purple-600"><GitMerge size={28} /></div>
+                      <div>
+                          <div className="font-bold text-lg text-gray-800">淘汰賽</div>
+                          <div className="text-sm text-gray-500">樹狀圖 (單/雙/團體)</div>
+                      </div>
+                  </button>
+                  {selectedType === 'elimination' && (
+                      <div className="px-4 pb-4 animate-in slide-in-from-top-2 space-y-3">
+                          <div className="bg-white/60 rounded-lg p-3 border border-purple-200">
+                             <div className="grid grid-cols-2 gap-3 mb-3">
+                                 <div>
+                                    <label className="block text-xs font-bold text-purple-800 mb-1">參賽數</label>
+                                    <select value={elimSize} onChange={(e) => setElimSize(parseInt(e.target.value))} className="w-full text-sm border-purple-200 rounded-md py-1.5 font-bold">
+                                        <option value={4}>4 籤</option><option value={8}>8 籤</option><option value={16}>16 籤</option>
+                                        <option value={32}>32 籤</option><option value={64}>64 籤</option><option value={128}>128 籤</option>
+                                    </select>
+                                 </div>
+                                 <div>
+                                    <label className="block text-xs font-bold text-purple-800 mb-1">模式</label>
+                                    <select value={elimMode} onChange={(e) => setElimMode(e.target.value as MatchType)} className="w-full text-sm border-purple-200 rounded-md py-1.5 font-bold">
+                                        <option value="single">單打</option><option value="double">雙打</option><option value="team">團體</option>
+                                    </select>
+                                 </div>
+                             </div>
+                             <div className="grid grid-cols-2 gap-3">
+                                 <div>
+                                     <label className="block text-xs font-bold text-purple-800 mb-1">賽制 (勝負)</label>
+                                     <select value={elimWinCondition} onChange={(e) => setElimWinCondition(parseInt(e.target.value))} className="w-full text-sm border-purple-200 rounded-md py-1.5 font-bold">
+                                         <option value={0}>一局決勝</option><option value={2}>三戰兩勝</option>
+                                         <option value={3}>五戰三勝</option><option value={4}>七戰四勝</option>
+                                     </select>
+                                 </div>
+                                 {elimMode === 'team' && (
+                                     <div>
+                                         <label className="block text-xs font-bold text-purple-800 mb-1">團體賽點數</label>
+                                         <select value={elimPoints} onChange={(e) => setElimPoints(parseInt(e.target.value))} className="w-full text-sm border-purple-200 rounded-md py-1.5 font-bold">
+                                             <option value={3}>3 點</option><option value={5}>5 點</option><option value={7}>7 點</option>
+                                         </select>
+                                     </div>
+                                 )}
+                             </div>
+                          </div>
+                          <button onClick={handleConfirm} className="w-full py-2.5 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition-colors shadow-sm">建立淘汰賽</button>
+                      </div>
+                  )}
+              </div>
 
-              <button 
-                  onClick={() => onAdd('roundRobin')} 
-                  className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md transition-all group text-left"
-              >
-                  <div className="bg-emerald-100 p-3 rounded-full text-emerald-600 group-hover:bg-emerald-200 group-hover:text-emerald-700 transition-colors">
-                      <Grid size={28} />
-                  </div>
-                  <div>
-                      <div className="font-bold text-lg text-gray-800 group-hover:text-emerald-900">循環賽</div>
-                      <div className="text-sm text-gray-500 group-hover:text-emerald-700/70">建立分組積分表</div>
-                  </div>
-              </button>
+              {/* 循環賽選項 */}
+              <div className={`border rounded-xl transition-all overflow-hidden ${selectedType === 'roundRobin' ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100' : 'border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md'}`}>
+                  <button onClick={() => setSelectedType('roundRobin')} className="w-full flex items-center gap-4 p-4 text-left">
+                      <div className="bg-emerald-100 p-3 rounded-full text-emerald-600"><Grid size={28} /></div>
+                      <div>
+                          <div className="font-bold text-lg text-gray-800">循環賽</div>
+                          <div className="text-sm text-gray-500">分組積分表</div>
+                      </div>
+                  </button>
+                  {selectedType === 'roundRobin' && (
+                      <div className="px-4 pb-4 animate-in slide-in-from-top-2 space-y-3">
+                          <div className="bg-white/60 rounded-lg p-3 border border-emerald-200">
+                              <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                     <label className="block text-xs font-bold text-emerald-800 mb-1">比賽點數</label>
+                                     <select value={rrPoints} onChange={(e) => setRrPoints(parseInt(e.target.value))} className="w-full text-sm border-emerald-200 rounded-md py-1.5 font-bold">
+                                         <option value={1}>單點 (1點)</option><option value={3}>3 點</option>
+                                         <option value={5}>5 點</option><option value={7}>7 點</option>
+                                     </select>
+                                  </div>
+                                  <div>
+                                     <label className="block text-xs font-bold text-emerald-800 mb-1">賽制 (勝負)</label>
+                                     <select value={rrWinCondition} onChange={(e) => setRrWinCondition(parseInt(e.target.value))} className="w-full text-sm border-emerald-200 rounded-md py-1.5 font-bold">
+                                         <option value={0}>一局決勝</option><option value={2}>三戰兩勝</option>
+                                         <option value={3}>五戰三勝</option><option value={4}>七戰四勝</option>
+                                     </select>
+                                  </div>
+                              </div>
+                          </div>
+                          <button onClick={handleConfirm} className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm">建立循環賽</button>
+                      </div>
+                  )}
+              </div>
           </div>
         </div>
       </div>
@@ -270,11 +374,13 @@ const ScoreControl = ({ score, onChange, readOnly, colorClass, maxScore, onClick
 
   return (
     <div className="flex items-center gap-0.5">
-      {showButtons && !readOnly && (
+      {/* Modify: Always render button to reserve space, but make invisible if readOnly */}
+      {showButtons && (
         <button 
             onClick={(e) => { e.stopPropagation(); onChange(Math.max(0, currentScore - 1)); }} 
-            className={`${btnSizeClass} flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-l-md transition-colors active:bg-gray-300 print:hidden`}
+            className={`${btnSizeClass} flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-l-md transition-colors active:bg-gray-300 print:hidden ${readOnly ? 'invisible pointer-events-none' : ''}`}
             title="減少"
+            disabled={readOnly}
         >
             <Minus size={iconSize} />
         </button>
@@ -283,7 +389,7 @@ const ScoreControl = ({ score, onChange, readOnly, colorClass, maxScore, onClick
       {onClick ? (
         <div 
             onClick={onClick}
-            className={`${inputContainerClass} flex items-center justify-center font-mono font-bold border-y border-gray-200 bg-white ${colorClass} ${readOnly ? 'rounded-md border-x px-2' : ''} cursor-pointer hover:bg-blue-50 transition-colors`}
+            className={`${inputContainerClass} flex items-center justify-center font-mono font-bold border-y border-gray-200 bg-white ${colorClass} ${readOnly ? 'rounded-md border-x px-2 bg-gray-50 text-gray-500 cursor-not-allowed' : 'cursor-pointer hover:bg-blue-50'} transition-colors`}
         >
             {score === '' ? '-' : score}
         </div>
@@ -295,19 +401,20 @@ const ScoreControl = ({ score, onChange, readOnly, colorClass, maxScore, onClick
             value={score}
             onChange={handleInputChange}
             disabled={readOnly}
-            className={`${inputClass} text-center font-mono font-bold border-y border-gray-200 bg-white outline-none focus:bg-blue-50 ${colorClass} ${readOnly ? 'rounded-md border-x' : ''}`}
+            className={`${inputClass} text-center font-mono font-bold border-y border-gray-200 bg-white outline-none focus:bg-blue-50 ${colorClass} ${readOnly ? 'rounded-md border-x bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
         />
       )}
 
-      {showButtons && !readOnly && (
+      {showButtons && (
         <button 
             onClick={(e) => {
                 e.stopPropagation();
                 if (maxScore > 0 && currentScore >= maxScore) return; 
                 onChange(currentScore + 1);
             }}
-            className={`${btnSizeClass} flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-r-md transition-colors active:bg-blue-200 print:hidden ${maxScore > 0 && currentScore >= maxScore ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`${btnSizeClass} flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-r-md transition-colors active:bg-blue-200 print:hidden ${maxScore > 0 && currentScore >= maxScore ? 'opacity-50 cursor-not-allowed' : ''} ${readOnly ? 'invisible pointer-events-none' : ''}`}
             title="增加"
+            disabled={readOnly}
         >
             <Plus size={iconSize} />
         </button>
@@ -433,8 +540,25 @@ const TeamMatchModal = ({ isOpen, onClose, matchData, p1Name, p2Name, pointsCoun
         onClose();
     };
 
+    const handlePrint = () => {
+        // 觸發列印時，利用 CSS class 控制只顯示 Modal 內容
+        document.body.classList.add('print-mode-modal');
+        window.print();
+        // 列印對話框關閉後（大部分瀏覽器會暫停 JS 執行直到關閉），移除 class
+        // 使用 setTimeout 確保在列印對話框開啟後執行 (如果是非阻塞環境) 或作為備案
+        setTimeout(() => {
+            document.body.classList.remove('print-mode-modal');
+        }, 500);
+        
+        // 現代瀏覽器支援
+        window.onafterprint = () => {
+             document.body.classList.remove('print-mode-modal');
+             window.onafterprint = null;
+        };
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[150] p-4 animate-in fade-in duration-200 print:hidden" style={{ fontFamily: '"Inter", "Noto Sans TC", sans-serif' }}>
+        <div className="team-match-modal-wrapper fixed inset-0 bg-black/60 flex items-center justify-center z-[150] p-4 animate-in fade-in duration-200 print:absolute print:inset-0 print:bg-white print:p-0" style={{ fontFamily: '"Inter", "Noto Sans TC", sans-serif' }}>
             <style>{`
                 .no-spin::-webkit-outer-spin-button,
                 .no-spin::-webkit-inner-spin-button {
@@ -446,28 +570,33 @@ const TeamMatchModal = ({ isOpen, onClose, matchData, p1Name, p2Name, pointsCoun
                 }
             `}</style>
 
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
-                <div className="bg-blue-600 text-white p-4 flex justify-between items-center shrink-0">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden print:shadow-none print:max-w-none print:max-h-none print:h-full print:rounded-none">
+                <div className="bg-blue-600 text-white p-4 flex justify-between items-center shrink-0 print:bg-white print:text-black print:border-b print:border-black">
                     <h3 className="text-xl font-bold flex items-center gap-2">
-                        <Edit3 size={20} /> 詳細戰況登錄
+                        <Edit3 size={20} className="print:hidden" /> 詳細戰況登錄
                     </h3>
-                    <button onClick={onClose} className="text-white/80 hover:text-white transition-colors"><X size={24} /></button>
+                    <div className="flex gap-2 print:hidden">
+                        <button onClick={handlePrint} className="p-2 hover:bg-blue-500 rounded-lg transition-colors text-white" title="匯出 PDF">
+                            <Download size={20} />
+                        </button>
+                        <button onClick={onClose} className="text-white/80 hover:text-white transition-colors"><X size={24} /></button>
+                    </div>
                 </div>
 
-                <div className="bg-blue-50 p-3 flex justify-between items-center text-blue-900 border-b border-blue-100 shrink-0">
+                <div className="bg-blue-50 p-3 flex justify-between items-center text-blue-900 border-b border-blue-100 shrink-0 print:bg-white print:text-black print:border-black">
                     <div className="font-bold text-lg flex items-center gap-4">
                         <span>{typeof p1Name === 'string' ? p1Name : '選手1'}</span> 
-                        <span className="text-2xl font-mono bg-white px-4 py-1 rounded shadow-sm border border-blue-100">{currentTotal.s1} : {currentTotal.s2}</span> 
+                        <span className="text-2xl font-mono bg-white px-4 py-1 rounded shadow-sm border border-blue-100 print:border-black">{currentTotal.s1} : {currentTotal.s2}</span> 
                         <span>{typeof p2Name === 'string' ? p2Name : '選手2'}</span>
                     </div>
-                    <div className="text-sm bg-white px-3 py-1 rounded-full shadow-sm border border-blue-100">
+                    <div className="text-sm bg-white px-3 py-1 rounded-full shadow-sm border border-blue-100 print:border-black">
                         賽制: {winCondition === 0 ? "一局決勝" : `${winCondition * 2 - 1} 戰 ${winCondition} 勝`}
                     </div>
                 </div>
 
-                <div className="p-4 overflow-y-auto bg-gray-50">
+                <div className="p-4 overflow-y-auto bg-gray-50 print:bg-white print:overflow-visible">
                     <div className="space-y-3">
-                        <div className="grid grid-cols-[60px_80px_1fr_180px_80px_1fr] gap-2 text-sm font-bold text-gray-500 px-4 text-center items-center">
+                        <div className="grid grid-cols-[60px_80px_1fr_180px_80px_1fr] gap-2 text-sm font-bold text-gray-500 px-4 text-center items-center print:text-black">
                             <div>點數</div><div>類型</div><div className="text-left pl-2">{typeof p1Name === 'string' ? p1Name : '選手1'}</div><div>各局小分</div><div>總局數</div><div className="text-right pr-2">{typeof p2Name === 'string' ? p2Name : '選手2'}</div>
                         </div>
 
@@ -477,22 +606,22 @@ const TeamMatchModal = ({ isOpen, onClose, matchData, p1Name, p2Name, pointsCoun
                                 ? (sets1 >= winCondition ? 0 : sets2 >= winCondition ? 1 : null)
                                 : (sets1 > sets2 ? 0 : sets2 > sets1 ? 1 : null);
 
-                            const rowStyle = pointWinner !== null ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200';
+                            const rowStyle = pointWinner !== null ? 'bg-gray-100 border-gray-300 print:bg-gray-100' : 'bg-white border-gray-200';
                             
                             const getP1Style = () => {
-                                if (pointWinner === 0) return "bg-orange-100 border-orange-300 text-orange-800 font-bold shadow-sm";
-                                if (pointWinner === 1) return "bg-transparent border-gray-300 text-gray-400";
+                                if (pointWinner === 0) return "bg-orange-100 border-orange-300 text-orange-800 font-bold shadow-sm print:border-black print:font-bold";
+                                if (pointWinner === 1) return "bg-transparent border-gray-300 text-gray-400 print:text-gray-600";
                                 return "bg-white border-gray-300 text-gray-700";
                             };
                             const getP2Style = () => {
-                                if (pointWinner === 1) return "bg-orange-100 border-orange-300 text-orange-800 font-bold shadow-sm";
-                                if (pointWinner === 0) return "bg-transparent border-gray-300 text-gray-400";
+                                if (pointWinner === 1) return "bg-orange-100 border-orange-300 text-orange-800 font-bold shadow-sm print:border-black print:font-bold";
+                                if (pointWinner === 0) return "bg-transparent border-gray-300 text-gray-400 print:text-gray-600";
                                 return "bg-white border-gray-300 text-gray-700";
                             };
 
                             return (
-                                <div key={idx} className={`grid grid-cols-[60px_80px_1fr_auto_80px_1fr] gap-3 items-center p-3 rounded-lg border shadow-sm transition-colors ${rowStyle}`}>
-                                    <div className="text-center font-bold text-gray-400 bg-white/50 rounded py-1 text-xs">第 {idx + 1} 點</div>
+                                <div key={idx} className={`grid grid-cols-[60px_80px_1fr_auto_80px_1fr] gap-3 items-center p-3 rounded-lg border shadow-sm transition-colors print:shadow-none print:border-black ${rowStyle}`}>
+                                    <div className="text-center font-bold text-gray-400 bg-white/50 rounded py-1 text-xs print:text-black print:bg-transparent">第 {idx + 1} 點</div>
                                     
                                     <div className="relative">
                                         {pointsCount > 1 ? (
@@ -500,26 +629,30 @@ const TeamMatchModal = ({ isOpen, onClose, matchData, p1Name, p2Name, pointsCoun
                                                 <select 
                                                     value={sub.type}
                                                     onChange={(e) => handleSubChange(idx, 'type', e.target.value)}
-                                                    className="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded py-1 pl-2 pr-6 focus:outline-none focus:border-blue-500 font-medium"
+                                                    className="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded py-1 pl-2 pr-6 focus:outline-none focus:border-blue-500 font-medium print:hidden"
                                                 >
                                                     <option value="single">單打</option><option value="double">雙打</option>
                                                 </select>
-                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-500">
+                                                {/* Print Only View */}
+                                                <div className="hidden print:flex items-center justify-center gap-1 w-full text-sm font-bold border border-black rounded py-1">
+                                                     {sub.type === 'single' ? '單打' : '雙打'}
+                                                </div>
+                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-500 print:hidden">
                                                     {sub.type === 'single' ? <UserRound size={12} /> : <UsersIcon size={12} />}
                                                 </div>
                                             </>
                                         ) : (
-                                            <div className="flex items-center justify-center gap-1.5 w-full bg-gray-100 text-gray-600 border border-gray-200 text-sm rounded py-1 font-medium">
-                                                {sub.type === 'single' ? <UserRound size={14} /> : <UsersIcon size={14} />}
+                                            <div className="flex items-center justify-center gap-1.5 w-full bg-gray-100 text-gray-600 border border-gray-200 text-sm rounded py-1 font-medium print:border-black print:bg-transparent print:text-black">
+                                                {sub.type === 'single' ? <UserRound size={14} className="print:hidden"/> : <UsersIcon size={14} className="print:hidden" />}
                                                 <span>{sub.type === 'single' ? '單打' : '雙打'}</span>
                                             </div>
                                         )}
                                     </div>
                                     
                                     <div className="flex flex-col gap-1 items-start">
-                                        <input type="text" placeholder="選手 A" value={sub.p1SubName} onChange={(e) => handleSubChange(idx, 'p1SubName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-sm focus:ring-1 focus:ring-blue-400 outline-none ${getP1Style()}`} />
+                                        <input type="text" placeholder="選手 A" value={sub.p1SubName} onChange={(e) => handleSubChange(idx, 'p1SubName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-sm focus:ring-1 focus:ring-blue-400 outline-none print:w-full print:border-black ${getP1Style()}`} />
                                         {sub.type === 'double' && (
-                                            <input type="text" placeholder="選手 B" value={sub.p1PartnerName} onChange={(e) => handleSubChange(idx, 'p1PartnerName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-sm focus:ring-1 focus:ring-blue-400 outline-none ${getP1Style()}`} />
+                                            <input type="text" placeholder="選手 B" value={sub.p1PartnerName} onChange={(e) => handleSubChange(idx, 'p1PartnerName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-sm focus:ring-1 focus:ring-blue-400 outline-none print:w-full print:border-black ${getP1Style()}`} />
                                         )}
                                     </div>
 
@@ -530,24 +663,24 @@ const TeamMatchModal = ({ isOpen, onClose, matchData, p1Name, p2Name, pointsCoun
                                             const s2Win = !isNaN(s1) && !isNaN(s2) && s2 > s1;
                                             return (
                                                 <div key={sIdx} className="flex flex-col gap-1 items-center">
-                                                    <input type="number" value={set.s1} placeholder="-" onChange={(e) => handleSetScoreChange(idx, sIdx, 's1', e.target.value)} className={`w-10 h-9 text-center border rounded text-lg font-mono p-0 focus:border-blue-500 outline-none transition-colors no-spin ${s1Win ? 'bg-orange-100 border-orange-400 text-red-700 font-bold' : 'bg-white border-gray-300 text-gray-600'}`} />
-                                                    <div className="h-px w-full bg-gray-200"></div>
-                                                    <input type="number" value={set.s2} placeholder="-" onChange={(e) => handleSetScoreChange(idx, sIdx, 's2', e.target.value)} className={`w-10 h-9 text-center border rounded text-lg font-mono p-0 focus:border-blue-500 outline-none transition-colors no-spin ${s2Win ? 'bg-orange-100 border-orange-400 text-red-700 font-bold' : 'bg-white border-gray-300 text-gray-600'}`} />
+                                                    <input type="number" value={set.s1} placeholder="-" onChange={(e) => handleSetScoreChange(idx, sIdx, 's1', e.target.value)} className={`w-10 h-9 text-center border rounded text-lg font-mono p-0 focus:border-blue-500 outline-none transition-colors no-spin print:border-black ${s1Win ? 'bg-orange-100 border-orange-400 text-red-700 font-bold print:bg-gray-200' : 'bg-white border-gray-300 text-gray-600'}`} />
+                                                    <div className="h-px w-full bg-gray-200 print:bg-black"></div>
+                                                    <input type="number" value={set.s2} placeholder="-" onChange={(e) => handleSetScoreChange(idx, sIdx, 's2', e.target.value)} className={`w-10 h-9 text-center border rounded text-lg font-mono p-0 focus:border-blue-500 outline-none transition-colors no-spin print:border-black ${s2Win ? 'bg-orange-100 border-orange-400 text-red-700 font-bold print:bg-gray-200' : 'bg-white border-gray-300 text-gray-600'}`} />
                                                 </div>
                                             );
                                         })}
                                     </div>
 
-                                    <div className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded px-3 py-1 shadow-inner">
-                                        <span className={`text-xl font-bold font-mono ${pointWinner === 0 ? 'text-red-600' : 'text-gray-400'}`}>{sets1}</span>
-                                        <div className="h-px w-4 bg-gray-200 my-0.5"></div>
-                                        <span className={`text-xl font-bold font-mono ${pointWinner === 1 ? 'text-red-600' : 'text-gray-400'}`}>{sets2}</span>
+                                    <div className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded px-3 py-1 shadow-inner print:border-black print:shadow-none">
+                                        <span className={`text-xl font-bold font-mono ${pointWinner === 0 ? 'text-red-600' : 'text-gray-400 print:text-gray-600'}`}>{sets1}</span>
+                                        <div className="h-px w-4 bg-gray-200 my-0.5 print:bg-black"></div>
+                                        <span className={`text-xl font-bold font-mono ${pointWinner === 1 ? 'text-red-600' : 'text-gray-400 print:text-gray-600'}`}>{sets2}</span>
                                     </div>
 
                                     <div className="flex flex-col gap-1 items-end">
-                                        <input type="text" placeholder="選手 A" value={sub.p2SubName} onChange={(e) => handleSubChange(idx, 'p2SubName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-right text-sm focus:ring-1 focus:ring-blue-400 outline-none ${getP2Style()}`} />
+                                        <input type="text" placeholder="選手 A" value={sub.p2SubName} onChange={(e) => handleSubChange(idx, 'p2SubName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-right text-sm focus:ring-1 focus:ring-blue-400 outline-none print:w-full print:border-black ${getP2Style()}`} />
                                         {sub.type === 'double' && (
-                                            <input type="text" placeholder="選手 B" value={sub.p2PartnerName} onChange={(e) => handleSubChange(idx, 'p2PartnerName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-right text-sm focus:ring-1 focus:ring-blue-400 outline-none ${getP2Style()}`} />
+                                            <input type="text" placeholder="選手 B" value={sub.p2PartnerName} onChange={(e) => handleSubChange(idx, 'p2PartnerName', e.target.value)} className={`w-2/3 p-1.5 rounded border text-right text-sm focus:ring-1 focus:ring-blue-400 outline-none print:w-full print:border-black ${getP2Style()}`} />
                                         )}
                                     </div>
                                 </div>
@@ -556,7 +689,7 @@ const TeamMatchModal = ({ isOpen, onClose, matchData, p1Name, p2Name, pointsCoun
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0">
+                <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0 print:hidden">
                     <button onClick={onClose} className="px-5 py-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">取消</button>
                     <button onClick={handleConfirm} className="px-5 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg shadow-md transition-colors flex items-center gap-2"><Check size={18} /> 儲存戰況</button>
                 </div>
@@ -566,7 +699,7 @@ const TeamMatchModal = ({ isOpen, onClose, matchData, p1Name, p2Name, pointsCoun
 };
 
 // --- 淘汰賽 Match Component ---
-const MatchCard = ({ match, roundIndex, rIndex, onNameChange, onScoreChange, winCondition, onEditClick, elimType }: any) => {
+const MatchCard = ({ match, roundIndex, rIndex, onNameChange, onScoreChange, winCondition, onEditClick, elimType, isLocked }: any) => {
     const isDouble = elimType === 'double';
     const scoreVariant = isDouble ? 'small' : 'normal';
     // 縮小高度
@@ -597,7 +730,7 @@ const MatchCard = ({ match, roundIndex, rIndex, onNameChange, onScoreChange, win
                             onChange={(e) => rIndex === 0 && onNameChange(rIndex, match.matchIndex, 'p1', e.target.value)} 
                             disabled={rIndex !== 0} 
                             placeholder={rIndex === 0 ? (isDouble ? `選手 ${match.matchIndex * 2 + 1}A` : (elimType === 'team' ? "隊伍 A" : "選手 1")) : ""} 
-                            className={`w-full bg-transparent border-none focus:ring-0 truncate ${isDouble ? 'text-xs py-1 ml-[1px]' : 'text-base'} ${match.winner === 0 ? 'font-bold text-orange-900' : 'text-gray-800'}`} 
+                            className={`bg-transparent border-none focus:ring-0 truncate ${isDouble ? 'text-xs py-1 ml-[1px] w-[95%] transform scale-110 origin-left' : 'text-base w-full'} ${match.winner === 0 ? 'font-bold text-orange-900' : 'text-gray-800'}`} 
                         />
                         {isDouble && (
                             <input 
@@ -606,20 +739,21 @@ const MatchCard = ({ match, roundIndex, rIndex, onNameChange, onScoreChange, win
                                 onChange={(e) => rIndex === 0 && onNameChange(rIndex, match.matchIndex, 'p1Partner', e.target.value)} 
                                 disabled={rIndex !== 0} 
                                 placeholder={rIndex === 0 ? `選手 ${match.matchIndex * 2 + 1}B` : ""} 
-                                className={`w-full bg-transparent border-none focus:ring-0 truncate text-xs py-1 ml-[1px] ${match.winner === 0 ? 'text-orange-800' : 'text-gray-500'}`} 
+                                className={`bg-transparent border-none focus:ring-0 truncate ${isDouble ? 'text-xs py-1 ml-[1px] w-[95%] transform scale-110 origin-left' : 'text-base w-full'} ${match.winner === 0 ? 'text-orange-800' : 'text-gray-500'}`} 
                             />
                         )}
                     </div>
                 </div>
 
-                <div className="flex-shrink-0 -ml-[1px]">
+                <div className={`flex-shrink-0 -ml-[1px] ${isDouble ? 'transform scale-110 origin-right mr-1' : ''}`}>
                     <ScoreControl 
                         score={match.s1} 
                         onChange={(val: any) => onScoreChange(rIndex, match.matchIndex, 's1', val)} 
                         colorClass={match.winner === 0 ? 'text-orange-900 font-bold' : 'text-gray-800'} 
                         maxScore={winCondition} 
                         variant={scoreVariant}
-                        showButtons={true} 
+                        showButtons={true}
+                        readOnly={isLocked}
                     />
                 </div>
             </div>
@@ -638,7 +772,7 @@ const MatchCard = ({ match, roundIndex, rIndex, onNameChange, onScoreChange, win
                             onChange={(e) => rIndex === 0 && onNameChange(rIndex, match.matchIndex, 'p2', e.target.value)} 
                             disabled={rIndex !== 0} 
                             placeholder={rIndex === 0 ? (isDouble ? `選手 ${match.matchIndex * 2 + 2}A` : (elimType === 'team' ? "隊伍 B" : "選手 2")) : ""} 
-                            className={`w-full bg-transparent border-none focus:ring-0 truncate ${isDouble ? 'text-xs py-1 ml-[1px]' : 'text-base'} ${match.winner === 1 ? 'font-bold text-orange-900' : 'text-gray-800'}`} 
+                            className={`bg-transparent border-none focus:ring-0 truncate ${isDouble ? 'text-xs py-1 ml-[1px] w-[95%] transform scale-110 origin-left' : 'text-base w-full'} ${match.winner === 1 ? 'font-bold text-orange-900' : 'text-gray-800'}`} 
                         />
                         {isDouble && (
                             <input 
@@ -647,13 +781,13 @@ const MatchCard = ({ match, roundIndex, rIndex, onNameChange, onScoreChange, win
                                 onChange={(e) => rIndex === 0 && onNameChange(rIndex, match.matchIndex, 'p2Partner', e.target.value)} 
                                 disabled={rIndex !== 0} 
                                 placeholder={rIndex === 0 ? `選手 ${match.matchIndex * 2 + 2}B` : ""} 
-                                className={`w-full bg-transparent border-none focus:ring-0 truncate text-xs py-1 ml-[1px] ${match.winner === 1 ? 'text-orange-800' : 'text-gray-500'}`} 
+                                className={`bg-transparent border-none focus:ring-0 truncate ${isDouble ? 'text-xs py-1 ml-[1px] w-[95%] transform scale-110 origin-left' : 'text-base w-full'} ${match.winner === 1 ? 'text-orange-800' : 'text-gray-500'}`} 
                             />
                         )}
                     </div>
                 </div>
 
-                <div className="flex-shrink-0 -ml-[1px]">
+                <div className={`flex-shrink-0 -ml-[1px] ${isDouble ? 'transform scale-110 origin-right mr-1' : ''}`}>
                     <ScoreControl 
                         score={match.s2} 
                         onChange={(val: any) => onScoreChange(rIndex, match.matchIndex, 's2', val)} 
@@ -661,6 +795,7 @@ const MatchCard = ({ match, roundIndex, rIndex, onNameChange, onScoreChange, win
                         maxScore={winCondition} 
                         variant={scoreVariant}
                         showButtons={true}
+                        readOnly={isLocked}
                     />
                 </div>
             </div>
@@ -679,8 +814,8 @@ const RoundRobinPolygon = ({ group }: any) => {
   const getCoordinates = (index: number, total: number) => {
     // 4人特殊佈局：正方形 (2x2)
     if (total === 4) {
-        // 內縮 Padding：原本 70，改為 80 縮小方形範圍，避免裁切
-        const padding = 80;
+        // 內縮 Padding：原本 70 -> 80 -> 85，進一步內縮確保文字不被切到 (size=400)
+        const padding = 85;
         const size = 400;
         // 左上 (0), 右上 (1), 左下 (2), 右下 (3)
         // 確保符合閱讀順序：第一排 0, 1，第二排 2, 3
@@ -887,7 +1022,7 @@ const TournamentManager = () => {
 
   // --- 專案邏輯 ---
 
-  const addTournament = (type: TournamentType) => {
+  const addTournament = (type: TournamentType, config: any, size?: number) => {
       const id = Date.now().toString();
       const count = tournaments.filter(t => t.type === type).length + 1;
       const name = type === 'elimination' ? `淘汰賽 ${count}` : `循環賽 ${String.fromCharCode(65 + count - 1)}`;
@@ -895,17 +1030,16 @@ const TournamentManager = () => {
       let newTournament: Tournament;
 
       if (type === 'elimination') {
+          const elimSize = size || 8;
           newTournament = {
               id,
               name,
               type,
               config: {
-                  winCondition: 2,
-                  elimType: 'single',
-                  elimPointsCount: 3,
-                  pointsCount: 1 // unused
+                  ...config,
+                  isLocked: false,
               },
-              data: generateInitialBracket(8)
+              data: generateInitialBracket(elimSize)
           };
       } else {
           // 循環賽：初始化包含一個預設組別
@@ -914,11 +1048,9 @@ const TournamentManager = () => {
               name,
               type,
               config: {
-                  winCondition: 2,
-                  pointsCount: 5,
-                  elimType: 'single', // unused
-                  elimPointsCount: 3, // unused
-                  rrSize: 3
+                  ...config,
+                  rrSize: 3,
+                  isLocked: false,
               },
               data: { groups: [createSingleGroup('A 組', 3)] }
           };
@@ -1087,7 +1219,8 @@ const TournamentManager = () => {
                              winCondition: saveData.winCondition || 2,
                              elimType: saveData.elimType || 'single',
                              elimPointsCount: saveData.elimPointsCount || 3,
-                             pointsCount: 1
+                             pointsCount: 1,
+                             isLocked: false
                          },
                          data: saveData.bracket || generateInitialBracket(8)
                      };
@@ -1099,7 +1232,8 @@ const TournamentManager = () => {
                         config: {
                             winCondition: saveData.winCondition || 2,
                             pointsCount: group.pointsCount || 5,
-                            elimType: 'single', elimPointsCount: 3, rrSize: group.players ? group.players.length : 3
+                            elimType: 'single', elimPointsCount: 3, rrSize: group.players ? group.players.length : 3,
+                            isLocked: false
                         },
                         data: { groups: [group] }
                      };
@@ -1115,6 +1249,10 @@ const TournamentManager = () => {
                         if (!t.data.groups && (t.data as any).players) {
                             return { ...t, data: { groups: [t.data] } };
                         }
+                    }
+                    // 確保 config 中有 isLocked
+                    if (t.config.isLocked === undefined) {
+                        t.config.isLocked = false;
                     }
                     return t;
                 });
@@ -1155,7 +1293,18 @@ const TournamentManager = () => {
     setTournaments(prev => prev.map(t => {
         if (t.id !== tournamentId) return t;
         const newBracket = JSON.parse(JSON.stringify(t.data)); // Deep copy
-        newBracket[roundIndex][matchIndex][field] = newName;
+        const match = newBracket[roundIndex][matchIndex];
+        match[field] = newName; // Update p1 or p2
+
+        if (match.subMatches && match.subMatches.length > 0) {
+            match.subMatches.forEach((sub: any) => {
+                if (field === 'p1') sub.p1SubName = newName;
+                else if (field === 'p2') sub.p2SubName = newName;
+                else if (field === 'p1Partner') sub.p1PartnerName = newName;
+                else if (field === 'p2Partner') sub.p2PartnerName = newName;
+            });
+        }
+
         propagateUpdates(newBracket, roundIndex, matchIndex, t.config.elimType);
         return { ...t, data: newBracket };
     }));
@@ -1232,11 +1381,11 @@ const TournamentManager = () => {
                   
                   if (t.config.elimType !== 'team' && subMatches.length > 0) {
                       const sub = subMatches[0];
-                      if (sub.p1SubName) match.p1 = sub.p1SubName;
-                      if (sub.p2SubName) match.p2 = sub.p2SubName;
+                      if (typeof sub.p1SubName === 'string') match.p1 = sub.p1SubName;
+                      if (typeof sub.p2SubName === 'string') match.p2 = sub.p2SubName;
                       if (t.config.elimType === 'double') {
-                          if (sub.p1PartnerName) match.p1Partner = sub.p1PartnerName;
-                          if (sub.p2PartnerName) match.p2Partner = sub.p2PartnerName;
+                          if (typeof sub.p1PartnerName === 'string') match.p1Partner = sub.p1PartnerName;
+                          if (typeof sub.p2PartnerName === 'string') match.p2Partner = sub.p2PartnerName;
                       }
                   }
 
@@ -1313,7 +1462,6 @@ const TournamentManager = () => {
           handleElimDetailSave(activeT.id, matchId, subMatches, totalS1, totalS2);
       } else {
           // 對於循環賽，我們需要知道目前操作的是哪個組別
-          // 這裡簡化處理：因為 matchId 是唯一的，所以我們會遍歷所有組別
           handleRrDetailSave(activeT.id, matchId, subMatches, totalS1, totalS2);
       }
   };
@@ -1389,8 +1537,8 @@ const TournamentManager = () => {
                         onClick={() => setActiveTournamentId(t.id)}
                         className={`group relative flex items-center gap-3 px-6 py-3 rounded-t-lg text-base font-bold cursor-pointer transition-all border-t shrink-0 select-none
                             ${activeTournamentId === t.id 
-                                ? 'bg-slate-800 text-white border-t-4 border-t-blue-500 border-x border-x-transparent z-10' 
-                                : 'bg-transparent text-slate-400 border-t-transparent border-x-transparent hover:text-slate-200 hover:bg-slate-800/50'}`}
+                                ? 'bg-slate-800 text-white border-t-4 border-t-blue-500 border-x border-x-slate-700/50' 
+                                : 'bg-transparent text-slate-400 border-t-4 border-t-transparent border-x-transparent hover:text-slate-200 hover:bg-slate-800/50'}`}
                     >
                         {t.type === 'elimination' ? <GitMerge size={20} /> : <Grid size={20} />}
                         {t.name}
@@ -1424,7 +1572,7 @@ const TournamentManager = () => {
       {activeTournament && (
             <div className="bg-white border-b border-gray-200 shadow-sm sticky top-[136px] z-10 print:hidden">
                 <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-6 overflow-x-auto hide-scrollbar py-1">
+                    <div className="flex items-center gap-6 overflow-x-auto hide-scrollbar py-1 flex-1">
                         {/* 比賽名稱編輯 */}
                         <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
                             <div className={`p-2 rounded-md ${activeTournament.type === 'elimination' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -1437,77 +1585,41 @@ const TournamentManager = () => {
                             />
                         </div>
 
-                        {/* 設定控制項群組 */}
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 bg-white hover:shadow-sm px-3 py-2 rounded-lg border border-gray-200 transition-all">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">賽制</span>
-                                <select 
-                                    value={activeTournament.config.winCondition} 
-                                    onChange={(e) => updateTournamentConfig(activeTournament.id, 'winCondition', parseInt(e.target.value))}
-                                    className="bg-transparent border-none text-base font-bold text-gray-900 focus:ring-0 cursor-pointer py-0 pl-1"
-                                >
-                                    <option value={0}>一局決勝</option>
-                                    <option value={2}>三戰兩勝</option>
-                                    <option value={3}>五戰三勝</option>
-                                    <option value={4}>七戰四勝</option>
-                                </select>
+                        {/* 設定控制項群組 (移除下拉選單，改為唯讀顯示) */}
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-100 bg-gray-50/50">
+                                <span>{activeTournament.type === 'elimination' ? '淘汰賽' : '循環賽'}</span>
+                                <span className="text-gray-300">|</span>
+                                <span>{activeTournament.config.winCondition === 0 ? "一局決勝" : `${activeTournament.config.winCondition * 2 - 1}戰${activeTournament.config.winCondition}勝`}</span>
+                                {activeTournament.type === 'elimination' && (
+                                    <>
+                                        <span className="text-gray-300">|</span>
+                                        <span>
+                                            {activeTournament.config.elimType === 'single' ? "單打" : 
+                                             activeTournament.config.elimType === 'double' ? "雙打" : "團體"}
+                                        </span>
+                                        {activeTournament.config.elimType === 'team' && (
+                                            <>
+                                                <span className="text-gray-300">|</span>
+                                                <span>{activeTournament.config.elimPointsCount}點</span>
+                                            </>
+                                        )}
+                                        <span className="text-gray-300">|</span>
+                                        <span>{Math.pow(2, Math.log2(activeTournament.data[0].length * 2))}籤</span>
+                                    </>
+                                )}
+                                {activeTournament.type === 'roundRobin' && (
+                                    <>
+                                        <span className="text-gray-300">|</span>
+                                        <span>{activeTournament.config.pointsCount}點</span>
+                                    </>
+                                )}
                             </div>
 
-                            {/* 淘汰賽專屬設定 */}
-                            {activeTournament.type === 'elimination' && (
-                                <>
-                                    <div className="flex items-center gap-2 bg-white hover:shadow-sm px-3 py-2 rounded-lg border border-gray-200 transition-all">
-                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">模式</span>
-                                        <select 
-                                            value={activeTournament.config.elimType} 
-                                            onChange={(e) => updateTournamentConfig(activeTournament.id, 'elimType', e.target.value)}
-                                            className="bg-transparent border-none text-base font-bold text-gray-900 focus:ring-0 cursor-pointer py-0 pl-1"
-                                        >
-                                            <option value="single">單打</option><option value="double">雙打</option><option value="team">團體</option>
-                                        </select>
-                                    </div>
-                                    
-                                    {activeTournament.config.elimType === 'team' && (
-                                        <div className="flex items-center gap-2 bg-white hover:shadow-sm px-3 py-2 rounded-lg border border-gray-200 transition-all">
-                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">點數</span>
-                                            <select 
-                                                value={activeTournament.config.elimPointsCount} 
-                                                onChange={(e) => updateTournamentConfig(activeTournament.id, 'elimPointsCount', parseInt(e.target.value))}
-                                                className="bg-transparent border-none text-base font-bold text-gray-900 focus:ring-0 cursor-pointer py-0 pl-1"
-                                            >
-                                                <option value={3}>3點</option><option value={5}>5點</option><option value={7}>7點</option>
-                                            </select>
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-center gap-2 bg-white hover:shadow-sm px-3 py-2 rounded-lg border border-gray-200 transition-all">
-                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">人數</span>
-                                        <select 
-                                            onChange={(e) => handleElimResize(activeTournament.id, parseInt(e.target.value))}
-                                            value={Math.pow(2, Math.log2(activeTournament.data[0].length * 2))}
-                                            className="bg-transparent border-none text-base font-bold text-gray-900 focus:ring-0 cursor-pointer py-0 pl-1"
-                                        >
-                                            <option value={4}>4人</option><option value={8}>8人</option><option value={16}>16人</option><option value={32}>32人</option>
-                                            <option value={64}>64人</option><option value={128}>128人</option>
-                                        </select>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* 循環賽專屬設定 */}
+                            {/* 循環賽專屬新增組別按鈕 (保留) */}
                             {activeTournament.type === 'roundRobin' && (
                                 <>
-                                    <div className="flex items-center gap-2 bg-white hover:shadow-sm px-3 py-2 rounded-lg border border-gray-200 transition-all">
-                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">點數</span>
-                                        <select 
-                                            value={activeTournament.config.pointsCount} 
-                                            onChange={(e) => updateTournamentConfig(activeTournament.id, 'pointsCount', parseInt(e.target.value))}
-                                            className="bg-transparent border-none text-base font-bold text-gray-900 focus:ring-0 cursor-pointer py-0 pl-1"
-                                        >
-                                            <option value={1}>單點</option><option value={3}>3點制</option><option value={5}>5點制</option>
-                                        </select>
-                                    </div>
-                                    <div className="w-px h-8 bg-gray-200 mx-1"></div>
+                                    <div className="w-px h-6 bg-gray-200"></div>
                                     <button 
                                         onClick={() => addRrGroup(activeTournament.id)}
                                         className="flex items-center gap-1 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-bold transition-colors border border-blue-200 shadow-sm"
@@ -1515,7 +1627,7 @@ const TournamentManager = () => {
                                         <PlusCircle size={18} /> 新增組別
                                     </button>
                                     <div className="flex items-center gap-2 bg-white hover:shadow-sm px-3 py-2 rounded-lg border border-gray-200 transition-all">
-                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">人數</span>
+                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">新組人數</span>
                                         <select 
                                             value={activeTournament.config.rrSize || 3}
                                             onChange={(e) => handleRrConfigChange(activeTournament.id, 'rrSize', parseInt(e.target.value))}
@@ -1528,6 +1640,18 @@ const TournamentManager = () => {
                             )}
                         </div>
                     </div>
+                    
+                    {/* 鎖定按鈕 (移至最右側) */}
+                    <button 
+                        onClick={() => updateTournamentConfig(activeTournament.id, 'isLocked', !activeTournament.config.isLocked)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ml-auto ${activeTournament.config.isLocked 
+                            ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
+                            : 'bg-white border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300'}`}
+                        title={activeTournament.config.isLocked ? "解鎖分數編輯" : "鎖定分數 (僅允許詳細戰況編輯)"}
+                    >
+                        {activeTournament.config.isLocked ? <Lock size={16} /> : <Unlock size={16} />}
+                        <span className="text-sm font-bold">{activeTournament.config.isLocked ? "已鎖定" : "未鎖定"}</span>
+                    </button>
                     
                     <button className="lg:hidden p-2 text-gray-400">
                         <MoreVertical size={24} />
@@ -1612,6 +1736,7 @@ const TournamentManager = () => {
                                 onScoreChange={(r: number, m: number, k: string, v: string) => handleElimScoreChange(activeTournament.id, r, m, k, v)} 
                                 winCondition={activeTournament.config.winCondition} 
                                 elimType={activeTournament.config.elimType}
+                                isLocked={activeTournament.config.isLocked}
                                 onEditClick={(m: any) => setMatchModalData({ 
                                     match: m, 
                                     p1Name: m.p1 || "選手1", 
@@ -1724,8 +1849,8 @@ const TournamentManager = () => {
                                             <table className="w-full text-base text-left">
                                                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
                                                     <tr>
-                                                        <th className="px-3 py-3 w-12">排名</th>
-                                                        <th className="px-3 py-3 w-1/4">隊伍</th>
+                                                        <th className="px-3 py-3 w-14">排名</th>
+                                                        <th className="px-3 py-3 w-40">隊伍</th>
                                                         <th className="px-3 py-3 text-center">賽</th>
                                                         <th className="px-3 py-3 text-center">勝</th>
                                                         <th className="px-3 py-3 text-center">負</th>
@@ -1776,9 +1901,25 @@ const TournamentManager = () => {
                                                     
                                                     {/* 比分控制 (放大) */}
                                                     <div className="flex items-center gap-2 shrink-0 transform scale-110 origin-center px-2">
-                                                        <ScoreControl score={match.s1} onChange={(val: any) => handleRrScoreChange(activeTournament.id, groupIndex, match.id, 's1', val)} colorClass={match.winner === 0 ? 'text-green-600' : ''} variant="small" />
+                                                        <ScoreControl 
+                                                            score={match.s1} 
+                                                            onChange={(val: any) => handleRrScoreChange(activeTournament.id, groupIndex, match.id, 's1', val)} 
+                                                            colorClass={match.winner === 0 ? 'text-green-600' : ''} 
+                                                            variant="small"
+                                                            maxScore={activeTournament.config.pointsCount} 
+                                                            showButtons={!activeTournament.config.isLocked}
+                                                            readOnly={activeTournament.config.isLocked}
+                                                        />
                                                         <span className="text-gray-300 font-bold text-sm">:</span>
-                                                        <ScoreControl score={match.s2} onChange={(val: any) => handleRrScoreChange(activeTournament.id, groupIndex, match.id, 's2', val)} colorClass={match.winner === 1 ? 'text-green-600' : ''} variant="small" />
+                                                        <ScoreControl 
+                                                            score={match.s2} 
+                                                            onChange={(val: any) => handleRrScoreChange(activeTournament.id, groupIndex, match.id, 's2', val)} 
+                                                            colorClass={match.winner === 1 ? 'text-green-600' : ''} 
+                                                            variant="small"
+                                                            maxScore={activeTournament.config.pointsCount}
+                                                            showButtons={!activeTournament.config.isLocked}
+                                                            readOnly={activeTournament.config.isLocked}
+                                                        />
                                                     </div>
                                                     
                                                     {/* 隊伍2 (放大) */}
