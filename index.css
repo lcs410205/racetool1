@@ -74,6 +74,7 @@ body {
     display: flex !important;
     flex-direction: column !important;
     height: auto !important;
+  }
 
   /* 確保每個 MatchCard 不會被從中間切斷 */
   .match-card-wrapper {
